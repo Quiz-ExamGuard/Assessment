@@ -110,6 +110,12 @@ let writeChain = Promise.resolve();
 let sigBank = "";
 let sigLive = "";
 
+/* Exams we've actually seen someone answering in this teacher
+   session. Used by autoCloseFinishedExams() below so we only
+   auto-close an exam once real students have gone through it -
+   not the instant it's (re)opened with nobody in it yet. */
+const examsWithActivity = new Set();
+
 /* student */
 let currentExam = null;
 let currentAttempt = null;
@@ -324,6 +330,7 @@ const TABLE_MAP = {
       id: q.id,
       class_id: q.classID,
       text: q.text,
+      directions: q.directions || null,
       choices: q.choices,
       correct: q.correct,
       qtype: q.type || "MULTIPLE_CHOICE",
@@ -335,6 +342,7 @@ const TABLE_MAP = {
       id: r.id,
       classID: r.class_id,
       text: r.text,
+      directions: r.directions || "",
       choices: r.choices,
       correct: r.correct,
       type: r.qtype || "MULTIPLE_CHOICE",
@@ -352,6 +360,7 @@ const TABLE_MAP = {
       id: e.id,
       title: e.title,
       class_id: e.classID,
+      section: e.section || null,
       duration: e.duration,
       randomize: e.randomize,
       status: e.status,
@@ -364,6 +373,7 @@ const TABLE_MAP = {
       id: r.id,
       title: r.title,
       classID: r.class_id,
+      section: r.section || "",
       duration: r.duration,
       randomize: r.randomize,
       status: r.status,
@@ -811,6 +821,68 @@ function renderAfterPull() {
 }
 
 
+/* An exam has no fixed end time of its own - each student's timer
+   starts only when *they* press Start, and ends automatically
+   (TIME_UP) when it runs out, or when they submit/leave/get
+   removed. So "the exam's timer is over" means: every student who
+   was in it has reached a final state (SUBMITTED/EXITED) and
+   nobody is still WAITING or ANSWERING. When that happens for an
+   exam the teacher left OPEN, close it for them automatically. */
+function autoCloseFinishedExams() {
+
+  let changed = false;
+
+  db.exams.forEach(exam => {
+
+    if (exam.status !== "OPEN" || !exam.startedAt) return;
+
+    const attempts =
+      db.attempts.filter(a => a.examID === exam.id);
+
+    if (!attempts.length) return;
+
+    const stillGoing =
+      attempts.some(
+        a =>
+          a.status === "WAITING" ||
+          a.status === "ANSWERING"
+      );
+
+    if (stillGoing) {
+
+      examsWithActivity.add(exam.id);
+
+      return;
+
+    }
+
+    /* nobody is waiting or answering right now - only auto-close
+       if this teacher session actually saw someone go through it,
+       so reopening an already-finished exam to let new students
+       in doesn't get instantly closed again before they join */
+    if (!examsWithActivity.has(exam.id)) return;
+
+    exam.status = "CLOSED";
+
+    examsWithActivity.delete(exam.id);
+
+    changed = true;
+
+  });
+
+  if (changed) {
+
+    saveDatabase();
+
+    showToast(
+      "All students have finished - exam closed automatically."
+    );
+
+  }
+
+}
+
+
 async function refreshTeacher(full = false) {
 
   if (!sb || !teacherSignedIn || pulling) return;
@@ -854,6 +926,8 @@ async function refreshTeacher(full = false) {
       lastFullPull = Date.now();
 
     }
+
+    autoCloseFinishedExams();
 
     rebuildResults();
 
@@ -1556,6 +1630,9 @@ function saveQuestion() {
   const questionText =
     document.getElementById("questionText").value.trim();
 
+  const directions =
+    document.getElementById("questionDirections").value.trim();
+
   const type =
     document.getElementById("questionType").value;
 
@@ -1644,6 +1721,7 @@ function saveQuestion() {
 
     question.classID = classID;
     question.text = questionText;
+    question.directions = directions;
     question.type = type;
     question.choices = choices;
     question.correct = correct;
@@ -1674,6 +1752,8 @@ function saveQuestion() {
 
     text: questionText,
 
+    directions,
+
     type,
 
     choices,
@@ -1689,6 +1769,7 @@ function saveQuestion() {
   saveDatabase();
 
   document.getElementById("questionText").value = "";
+  document.getElementById("questionDirections").value = "";
   document.getElementById("choiceA").value = "";
   document.getElementById("choiceB").value = "";
   document.getElementById("choiceC").value = "";
@@ -1715,6 +1796,8 @@ function editQuestion(questionID) {
 
   document.getElementById("questionClass").value = question.classID;
   document.getElementById("questionText").value = question.text;
+  document.getElementById("questionDirections").value =
+    question.directions || "";
   const type = questionTypeOf(question);
 
   document.getElementById("questionType").value = type;
@@ -1775,6 +1858,7 @@ function resetQuestionForm() {
   editingQuestionID = null;
 
   document.getElementById("questionText").value = "";
+  document.getElementById("questionDirections").value = "";
   document.getElementById("choiceA").value = "";
   document.getElementById("choiceB").value = "";
   document.getElementById("choiceC").value = "";
@@ -1978,6 +2062,12 @@ function renderQuestions() {
                 : ""}
             </h4>
 
+            ${q.directions
+              ? `<p class="bank-directions">
+                  Directions: ${escapeHTML(q.directions)}
+                </p>`
+              : ""}
+
             <p>
               <span class="status SUBMITTED">${
                 QUESTION_TYPES[questionTypeOf(q)]
@@ -2051,6 +2141,12 @@ function createExam() {
     ).value;
 
 
+  const section =
+    document.getElementById(
+      "examSection"
+    ).value.trim();
+
+
   const duration =
     Number(
       document.getElementById(
@@ -2069,6 +2165,17 @@ function createExam() {
 
     showToast(
       "Enter an exam title and class."
+    );
+
+    return;
+
+  }
+
+
+  if (!section) {
+
+    showToast(
+      "Please fill in the section."
     );
 
     return;
@@ -2120,6 +2227,8 @@ function createExam() {
 
     classID,
 
+    section,
+
     duration,
 
     randomize,
@@ -2144,6 +2253,10 @@ function createExam() {
 
   document.getElementById(
     "examTitle"
+  ).value = "";
+
+  document.getElementById(
+    "examSection"
   ).value = "";
 
 
@@ -2248,6 +2361,12 @@ function renderExams() {
             <span class="meta-pill">
               ⏱ ${exam.duration} minutes
             </span>
+
+            ${exam.section
+              ? `<span class="meta-pill">
+                  📋 ${escapeHTML(exam.section)}
+                </span>`
+              : ""}
 
             <span class="meta-pill">
               📝 ${questionCount} questions
@@ -2402,6 +2521,15 @@ function toggleExam(examID) {
       ? "CLOSED"
       : "OPEN";
 
+  if (exam.status === "OPEN") {
+
+    /* give it a fresh grace period - don't let
+       autoCloseFinishedExams() close it again before
+       any new student actually joins/answers */
+    examsWithActivity.delete(exam.id);
+
+  }
+
 
   saveDatabase();
 
@@ -2522,6 +2650,13 @@ function renderActiveExam() {
             : "Unknown"}
         </span>
 
+        ${activeExam.section
+          ? `<span class="meta-pill">
+              Section:
+              ${escapeHTML(activeExam.section)}
+            </span>`
+          : ""}
+
         <span class="meta-pill">
           Duration:
           ${activeExam.duration} min
@@ -2602,6 +2737,7 @@ function populateMonitorExamList() {
 
         `<option value="${exam.id}">
           ${escapeHTML(exam.title)}
+          ${exam.section ? `— ${escapeHTML(exam.section)}` : ""}
           (${exam.code})
         </option>`
 
@@ -3843,6 +3979,21 @@ function renderStudentQuestion() {
 
   el("currentQuestionLabel").textContent =
     `QUESTION ${questionNumber}`;
+
+
+  const directionsEl = el("currentQuestionDirections");
+
+  if (question.directions) {
+
+    directionsEl.textContent = question.directions;
+    directionsEl.classList.remove("hidden");
+
+  } else {
+
+    directionsEl.textContent = "";
+    directionsEl.classList.add("hidden");
+
+  }
 
 
   el("currentQuestion").textContent =

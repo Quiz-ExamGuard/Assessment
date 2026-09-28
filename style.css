@@ -1501,6 +1501,33 @@ td .mini-btn + .mini-btn {
   line-height: 1.5;
 }
 
+.field-optional {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.question-directions {
+  margin: -6px 0 14px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--blue);
+  background: var(--blue-light);
+  border-radius: 6px;
+  font-style: italic;
+  font-size: 14.5px;
+  color: #3d4257;
+}
+
+.question-directions.hidden {
+  display: none;
+}
+
+.bank-directions {
+  font-style: italic;
+  color: var(--muted);
+}
+
+
 .ident-input {
   width: 100%;
   padding: 16px;

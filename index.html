@@ -310,10 +310,15 @@
 
             <label>Class Name</label>
 
-            <input
-              id="newClassName"
-              placeholder="Example: Grade 11 Mathematics"
-            >
+            <select id="newClassName">
+              <option value="" disabled selected>Select grade level</option>
+              <option value="Grade 7">Grade 7</option>
+              <option value="Grade 8">Grade 8</option>
+              <option value="Grade 9">Grade 9</option>
+              <option value="Grade 10">Grade 10</option>
+              <option value="Grade 11">Grade 11</option>
+              <option value="Grade 12">Grade 12</option>
+            </select>
 
             <button
               class="primary-btn full"
@@ -369,6 +374,14 @@
             <option value="TRUE_FALSE">True or False</option>
             <option value="IDENTIFICATION">Identification</option>
           </select>
+
+          <label>Directions <span class="field-optional">(optional)</span></label>
+
+          <textarea
+            id="questionDirections"
+            rows="2"
+            placeholder="Example: Read each statement carefully and choose the letter of the correct answer."
+          ></textarea>
 
           <label>Question</label>
 
@@ -525,6 +538,14 @@
             <div>
               <label>Class</label>
               <select id="examClass"></select>
+            </div>
+
+            <div>
+              <label>Section</label>
+              <input
+                id="examSection"
+                placeholder="Example: Section A / St. Therese"
+              >
             </div>
 
             <div>
@@ -1001,6 +1022,11 @@
         <div class="question-number" id="currentQuestionLabel">
           QUESTION 1
         </div>
+
+        <p
+          id="currentQuestionDirections"
+          class="question-directions hidden"
+        ></p>
 
         <h2 id="currentQuestion">
           Question
