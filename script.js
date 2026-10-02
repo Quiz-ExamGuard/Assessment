@@ -139,6 +139,7 @@ let pollBusy = false;
 let pollFailures = 0;
 let startingExam = false;
 let submitting = false;
+let lastFlushError = null;
 let examEnding = false;
 let guardPaused = false;
 let pendingLeaveID = null;
@@ -4246,6 +4247,7 @@ function flushAnswers() {
 
         /* the next heartbeat tries again */
         console.error("EXAMGUARD save answer failed:", error);
+        lastFlushError = error;
 
       } finally {
 
@@ -4350,6 +4352,7 @@ async function submitExam(
 
 
   submitting = true;
+  lastFlushError = null;
 
   try {
 
@@ -4386,7 +4389,7 @@ async function submitExam(
     showToast(
       automatic
         ? "Connection problem. Trying to submit again…" + errText(error)
-        : "Could not submit. Check your connection and try again." + errText(error)
+        : "Could not submit. Check your connection and try again." + errText(lastFlushError || error)
     );
 
   } finally {
