@@ -58,6 +58,15 @@ const sb =
     : null;
 
 
+/* shows the REAL reason a request failed (for troubleshooting) */
+function errText(error) {
+  if (!error) return "";
+  const parts = [error.message, error.details, error.hint, error.code]
+    .filter(Boolean);
+  return parts.length ? " [" + parts.join(" | ") + "]" : "";
+}
+
+
 const SERVER_UNAVAILABLE =
   "The exam server is not available. " +
   "Check the Supabase setup or your internet connection.";
@@ -493,7 +502,7 @@ function saveDatabase() {
 
         showToast(
           "Could not save to the server. " +
-          "Check your connection."
+          "Check your connection." + errText(error)
         );
 
       })
@@ -3426,7 +3435,7 @@ async function joinExam() {
 
     message.textContent =
       "Could not reach the exam server. " +
-      "Check your internet connection and try again.";
+      "Check your internet connection and try again." + errText(error);
 
   } finally {
 
@@ -3611,7 +3620,7 @@ async function pollStudent() {
 
     if (pollFailures === 3) {
 
-      showToast("Connection problem. Trying again…");
+      showToast("Connection problem. Trying again…" + errText(error));
 
     }
 
@@ -4236,6 +4245,7 @@ function flushAnswers() {
       } catch (error) {
 
         /* the next heartbeat tries again */
+        console.error("EXAMGUARD save answer failed:", error);
 
       } finally {
 
@@ -4375,8 +4385,8 @@ async function submitExam(
 
     showToast(
       automatic
-        ? "Connection problem. Trying to submit again…"
-        : "Could not submit. Check your connection and try again."
+        ? "Connection problem. Trying to submit again…" + errText(error)
+        : "Could not submit. Check your connection and try again." + errText(error)
     );
 
   } finally {
