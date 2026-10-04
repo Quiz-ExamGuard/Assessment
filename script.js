@@ -4189,9 +4189,14 @@ function renderStudentQuestion() {
    Returns one shared promise so submitExam() can wait for it. */
 function flushAnswers() {
 
+  /* a send is already running: share it */
   if (flushPromise) return flushPromise;
 
-  flushPromise =
+  /* nothing to send (e.g. the answer box lost focus without typing).
+     Must NOT create a stored promise, or it would stay stuck forever */
+  if (!pendingAnswers.size) return Promise.resolve();
+
+  const run =
     (async () => {
 
       try {
@@ -4249,13 +4254,17 @@ function flushAnswers() {
         console.error("EXAMGUARD save answer failed:", error);
         lastFlushError = error;
 
-      } finally {
-
-        flushPromise = null;
-
       }
 
     })();
+
+  /* clear the shared promise only AFTER the send has finished */
+  flushPromise =
+    run.finally(() => {
+
+      flushPromise = null;
+
+    });
 
   return flushPromise;
 
@@ -4356,7 +4365,13 @@ async function submitExam(
 
   try {
 
-    await flushAnswers();
+    /* send everything; repeat if the student changed an answer
+       while a send was still running */
+    for (let i = 0; i < 3 && pendingAnswers.size; i++) {
+
+      await flushAnswers();
+
+    }
 
     if (pendingAnswers.size) {
 
