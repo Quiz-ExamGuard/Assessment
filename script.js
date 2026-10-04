@@ -53,7 +53,16 @@ const sb =
   isConfigured() && window.supabase
     ? window.supabase.createClient(
         CONFIG.SUPABASE_URL,
-        CONFIG.SUPABASE_ANON_KEY
+        CONFIG.SUPABASE_ANON_KEY,
+        {
+          /* the teacher's login lives only in this tab and is
+             forgotten when the tab is closed (shared computers) */
+          auth: {
+            storage: window.sessionStorage,
+            persistSession: true,
+            autoRefreshToken: true
+          }
+        }
       )
     : null;
 
@@ -1077,20 +1086,31 @@ async function showTeacherLogin() {
 
   }
 
-  /* already signed in on this device? go straight in */
+  /* Never continue a previous teacher's session: whoever opens
+     this screen must type their own email and password. */
+  teacherSignedIn = false;
+
+  stopTeacherPolling();
+
+  db = emptyDatabase();
+
+  snapshot = emptySnapshot();
+
+  sigBank = "";
+
+  sigLive = "";
+
+  el("teacherEmail").value = "";
+
+  el("teacherPassword").value = "";
+
   try {
 
-    const { data } = await sb.auth.getSession();
-
-    if (data.session && await checkIsTeacher()) {
-
-      await enterTeacherDashboard();
-
-    }
+    await sb.auth.signOut({ scope: "local" });
 
   } catch (error) {
 
-    /* no connection: the sign-in form stays visible */
+    /* nothing to sign out of */
 
   }
 
