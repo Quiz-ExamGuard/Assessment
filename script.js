@@ -1930,7 +1930,7 @@ function deleteQuestion(questionID) {
     ).length;
 
   let message =
-    `Delete this question?\n\n"${question.text}"`;
+    `Delete this question?\n\n"${plainQuestionText(question.text)}"`;
 
   if (activeStudents > 0) {
 
@@ -2086,7 +2086,7 @@ function renderQuestions() {
 
             <h4>
               ${index + 1}.
-              ${escapeHTML(q.text)}
+              ${formatMath(q.text)}
               ${isEditing
                 ? '<span class="editing-tag">EDITING</span>'
                 : ""}
@@ -2094,7 +2094,7 @@ function renderQuestions() {
 
             ${q.directions
               ? `<p class="bank-directions">
-                  Directions: ${escapeHTML(q.directions)}
+                  Directions: ${formatMath(q.directions)}
                 </p>`
               : ""}
 
@@ -2108,7 +2108,7 @@ function renderQuestions() {
               ? ""
               : Object.entries(q.choices).map(
                   ([letter, text]) =>
-                    `<p>${letter}. ${escapeHTML(text)}</p>`
+                    `<p>${letter}. ${formatMath(text)}</p>`
                 ).join("")}
 
             <p>
@@ -4015,7 +4015,7 @@ function renderStudentQuestion() {
 
   if (question.directions) {
 
-    directionsEl.textContent = question.directions;
+    directionsEl.innerHTML = formatMath(question.directions);
     directionsEl.classList.remove("hidden");
 
   } else {
@@ -4026,8 +4026,8 @@ function renderStudentQuestion() {
   }
 
 
-  el("currentQuestion").textContent =
-    question.text;
+  el("currentQuestion").innerHTML =
+    formatMath(question.text);
 
 
   el("questionNumber").textContent =
@@ -4144,7 +4144,7 @@ function renderStudentQuestion() {
                 ? ""
                 : `<strong>${letter}.</strong>`}
 
-              ${escapeHTML(text)}
+              ${formatMath(text)}
 
             </span>
 
@@ -4909,8 +4909,8 @@ function openItemBreakdown(resultID) {
 
             const label =
               type === "TRUE_FALSE"
-                ? escapeHTML(q.choices[letter] || displayAnswer(letter, type))
-                : `${letter}. ${escapeHTML(q.choices[letter])}`;
+                ? formatMath(q.choices[letter] || displayAnswer(letter, type))
+                : `${letter}. ${formatMath(q.choices[letter])}`;
 
             return `<p class="${
               isCorrectPick ? "bd-key" : isStudentPick ? "bd-pick" : ""
@@ -4926,7 +4926,7 @@ function openItemBreakdown(resultID) {
           }">
 
             <h4>
-              ${i + 1}. ${escapeHTML(q.text)}
+              ${i + 1}. ${formatMath(q.text)}
               <span class="status ${
                 isCorrect ? "SUBMITTED" : "INTERRUPTED"
               }">
